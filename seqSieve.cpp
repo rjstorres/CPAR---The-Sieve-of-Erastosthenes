@@ -35,7 +35,7 @@ void sequentialSieve (unsigned long long n)
     cout << numberOfPrimes << endl;
 }
 
-void sequentialSieveOpenMp(unsigned long long n,  int n_threads){
+void sieveOpenMp(unsigned long long n,  int n_threads){
     n = pow(2,n);
     
     bool *primes = new bool[n]; //initialized as false
@@ -67,8 +67,8 @@ void sequentialSieveOpenMp(unsigned long long n,  int n_threads){
 }
 
 int main(){
-    sequentialSieveOpenMp(25,2);
-    sequentialSieveOpenMp(32,2);
+    sieveOpenMp(25,2);
+    sieveOpenMp(32,2);
     return 0;
 }
 

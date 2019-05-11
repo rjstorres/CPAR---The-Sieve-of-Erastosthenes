@@ -1,4 +1,9 @@
-#include "OpenMPISieve.h"
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <math.h>
+#include <omp.h>
+#include <mpi.h>
 
 
 #define BLOCK_LOW(i, n, k) ((i) * (n) / (k))
@@ -8,85 +13,158 @@
 #define ROOT 0
 using namespace std;
 
-void openMPISieve(unsigned long long n) {
-    MPI_Init( NULL, NULL );
-    n = pow(2, n);
-	double openMPITime = 0;
-	
-	unsigned long long startBlockValue, counter = 0, numberOfPrimes = 0;
+
+
+
+void sieveMPIAndOpenMP(unsigned long long n, unsigned int n_threads) {
+	n= pow(2,n);
 
     // Get the number of processes
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int worldSize;
+    MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
 
     // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    int worldRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
 
-	// calculate the lower and higher values of each process and its offset
-	unsigned long long blockSize = BLOCK_SIZE(world_rank, n - 1, world_size);
-	unsigned long long lowValue = BLOCK_LOW(world_rank, n - 1, world_size) + 2;
-	unsigned long long highValue = BLOCK_HIGH(world_rank, n - 1, world_size) + 2;
+    double timeCounter = 0;
+    unsigned long long startBlockValue = 0;
+    int numberOfPrimes = 0;
 
-	// initializes the list
-	bool *primes = new bool[blockSize];
+    if(worldRank == ROOT)
+        timeCounter = -MPI_Wtime();
 
-	MPI_Barrier (MPI_COMM_WORLD);
+    unsigned long long blockSize = BLOCK_SIZE(worldRank, n-1, worldSize);
+    unsigned long long blockLow = 2+BLOCK_LOW(worldRank, n-1, worldSize);
+    unsigned long long blockHigh = 2+BLOCK_HIGH(worldRank, n-1, worldSize);
 
-	if(world_rank == ROOT) {
+    vector<bool> primes(blockSize,false);
+    for (unsigned long long k = 2;k*k <= n;) {
 
-		openMPITime = -MPI_Wtime();
-	}
+        if(k*k < blockLow){
+            if(blockLow % k == 0){
+                startBlockValue = blockLow;
+            }else{
+                startBlockValue = (blockLow + (k-(blockLow % k)));
+            }
+        }else{
+            startBlockValue = k*k;
+        }
 
-	for (unsigned long long k = 2; k*k <= n;) {
-		// calculate the start block value to each process
-	    if(k*k < low_value){
+        // Mark as false all multiples of k between k*k and n
+        #pragma omp parallel for num_threads(n_threads)
+        for (unsigned long long i = startBlockValue; i <= blockHigh; i += k){
+            primes[i-blockLow] = true;
+        }
 
-            if(low_value % k == 0)
-                startBlockValue = low_value;
-            else
-                startBlockValue = (low_value + (k-(low_value % k)));
-
-		} else {
-			startBlockValue = k*k;
-		}
-
-		 // Mark as true all multiples of k between k*k and n
-		for (unsigned long long i = startBlockValue; i <= highValue; i += k)
-			primes[i - lowValue] = true;
-
-		// get the next prime to broadcast it to the other processes
-		if (world_rank == ROOT) {
-			do {
+        // Set k as the smaller urmarked number > k
+        if(worldRank == ROOT){
+            do {
 				k++;
-			} while (primes[k - lowValue] && k*k < highValue);
-		}
+			} while (primes[k - blockLow] && k*k < blockHigh);
+        }
 
-		MPI_Bcast(&k, 1, MPI_LONG, 0, MPI_COMM_WORLD);
-	}
-
-	if(world_rank == ROOT) {
-		openMPITime += MPI_Wtime();
-        //return OpenMpiTime
-	}
-
-	// count all the Primes
-	for (unsigned long long i = 0; i < blockSize; i+=2)
-		if (!primes[i])
-			counter++;
-
-	// reduce the counter to multiple processes
-	if (world_size > 1)
-		MPI_Reduce(&counter, &numberOfPrimes, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-	else
-		numberOfPrimes = counter;
-
-	if(world_rank == ROOT)
-		openMPITime += MPI_Wtime();
+        MPI_Bcast(&k, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
         
-    MPI_Finalize();
-	free(primes);
+    }
+
+    int blockNumberOfPrimes=0;
+    for(unsigned long long i = 0; i < primes.size(); i++){
+        if (!primes[i])
+            blockNumberOfPrimes++;
+    }
+
+    MPI_Reduce(&blockNumberOfPrimes, &numberOfPrimes, 1, MPI_INT, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    
+    if(worldRank == ROOT){
+        timeCounter += MPI_Wtime();
+
+        cout << "Tempo de execucao: " <<  timeCounter << " (s)" <<endl;
+
+        cout << "Numero de primos: " << numberOfPrimes << endl;
+    }
+
 }
+
+void sieveMPI(unsigned long long n) {
+	n= pow(2,n);
+
+    // Get the number of processes
+    int worldSize;
+    MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+
+    // Get the rank of the process
+    int worldRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
+
+    double timeCounter = 0;
+    unsigned long long startBlockValue = 0;
+    int numberOfPrimes = 0;
+
+    if(worldRank == ROOT)
+        timeCounter = -MPI_Wtime();
+
+    unsigned long long blockSize = BLOCK_SIZE(worldRank, n-1, worldSize);
+    unsigned long long blockLow = 2+BLOCK_LOW(worldRank, n-1, worldSize);
+    unsigned long long blockHigh = 2+BLOCK_HIGH(worldRank, n-1, worldSize);
+
+    vector<bool> primes(blockSize,false);
+    for (unsigned long long k = 2;k*k <= n;) {
+
+        if(k*k < blockLow){
+            if(blockLow % k == 0){
+                startBlockValue = blockLow;
+            }else{
+                startBlockValue = (blockLow + (k-(blockLow % k)));
+            }
+        }else{
+            startBlockValue = k*k;
+        }
+
+        // Mark as false all multiples of k between k*k and n
+        for (unsigned long long i = startBlockValue; i <= blockHigh; i += k){
+            primes[i-blockLow] = true;
+        }
+
+        // Set k as the smaller urmarked number > k
+        if(worldRank == ROOT){
+            do {
+				k++;
+			} while (primes[k - blockLow] && k*k < blockHigh);
+        }
+
+        MPI_Bcast(&k, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+        
+    }
+
+    int blockNumberOfPrimes=0;
+    for(unsigned long long i = 0; i < primes.size(); i++){
+        if (!primes[i])
+            blockNumberOfPrimes++;
+    }
+
+    MPI_Reduce(&blockNumberOfPrimes, &numberOfPrimes, 1, MPI_INT, MPI_SUM, ROOT, MPI_COMM_WORLD);
+    
+    if(worldRank == ROOT){
+        timeCounter += MPI_Wtime();
+
+        cout << "Tempo de execucao: " <<  timeCounter << " (s)" <<endl;
+
+        cout << "Numero de primos: " << numberOfPrimes << endl;
+    }
+
+}
+
+
+
+int main(){
+    MPI_Init( NULL, NULL );
+
+    sieveMPIAndOpenMP(25,3);
+	MPI_Finalize();
+}
+
+
 
 
 
