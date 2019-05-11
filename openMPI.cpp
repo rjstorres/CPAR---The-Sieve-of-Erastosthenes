@@ -12,14 +12,16 @@
 #define BLOCK_SIZE(i, n, k) (BLOCK_LOW((i) + 1, n, k) - BLOCK_LOW(i, n, k))
 #define BLOCK_OWNER(index, n, k) ((((k) * (index) + 1) - 1) / (n))
 #define ROOT 0
+unsigned numberOfProcessses=0;
 using namespace std;
 
 
 
 
-void sieveMPIAndOpenMP(unsigned long long n, unsigned int n_threads) {
+double sieveMPIAndOpenMP(unsigned exponent, unsigned int n_threads) {
     MPI_Init( NULL, NULL );
-	n= pow(2,n);
+	unsigned long long n= pow(2,exponent);
+    
 
     // Get the number of processes
     int worldSize;
@@ -80,17 +82,21 @@ void sieveMPIAndOpenMP(unsigned long long n, unsigned int n_threads) {
     
     if(worldRank == ROOT){
         timeCounter += MPI_Wtime();
+        
+        std::ofstream myfile;
+	    myfile.open("Benchmark2.csv", ofstream::out | ofstream::app);
+        myfile << "4," << exponent << "," << setprecision(3) <<timeCounter <<"," <<numberOfProcessses <<"," <<n_threads<<",\n";
+        cout << "4,"  << exponent << "," << setprecision(3) <<timeCounter << "," <<numberOfProcessses <<"," <<n_threads<<",\n";
+        myfile.close();
 
-        cout << "Tempo de execucao: " <<  timeCounter << " (s)" <<endl;
-
-        cout << "Numero de primos: " << numberOfPrimes << endl;
     }
     MPI_Finalize();
+    return timeCounter;
 }
 
-void sieveMPI(unsigned long long n) {
+double sieveMPI(unsigned exponent) {
     MPI_Init( NULL, NULL );
-	n= pow(2,n);
+	unsigned long long n= pow(2,exponent);
 
     // Get the number of processes
     int worldSize;
@@ -154,13 +160,33 @@ void sieveMPI(unsigned long long n) {
         //cout <<  timeCounter << " (s)" <<endl;
 
         //cout << numberOfPrimes << endl;
+        std::ofstream myfile;
+	    myfile.open("Benchmark2.csv", ofstream::out | ofstream::app);
+        myfile << "3," << exponent << "," << setprecision(3) <<timeCounter <<"," << numberOfProcessses<< ",\n";
+        cout << "3,"  << exponent << "," << setprecision(3) <<timeCounter <<","<<numberOfProcessses<<",\n";
+        myfile.close();
     }
     MPI_Finalize();
+    return timeCounter;
+    
 }
 
 
 
-int main(){
+int main(int argc, char** argv) {
+
+    unsigned long exponent = (unsigned) atol(argv[1]);
+
+	unsigned algNumber = (unsigned) atoi(argv[2]);
+
+    numberOfProcessses = (unsigned) atoi(argv[3]);
+
+	if(algNumber==1)
+        sieveMPI(exponent);
+    else if(algNumber==2){
+        unsigned n_threads = (unsigned) atoi(argv[4]);
+        sieveMPIAndOpenMP(exponent,n_threads);
+    }
 
 }
 
