@@ -3,6 +3,7 @@
 #include <math.h>
 #include <omp.h>
 #include <fstream>
+#include <vector>
 using namespace std;
 
 double sequentialSieve (unsigned long long n)
@@ -10,7 +11,7 @@ double sequentialSieve (unsigned long long n)
  
     n = pow(2,n);
     
-    bool *primes = new bool[n];
+    vector<bool> primes(n,false);
     
     unsigned long long k = 3;
     double timeCounter = -(double)clock();
@@ -27,20 +28,22 @@ double sequentialSieve (unsigned long long n)
         
     } while (k*k <= n);
 
+    int numberOfPrimes=0;
+    for (unsigned long long i=1; i<n; i+=2)
+        if (!primes[i>>1])
+            numberOfPrimes++;
+
     timeCounter += (double)clock();
     timeCounter /= CLOCKS_PER_SEC;
     return timeCounter;
-    /*int numberOfPrimes=0;
-    for (unsigned long long i=1; i<n; i+=2)
-        if (!primes[i>>1])
-            numberOfPrimes++;*/
+
 
 }
 
 double sieveOpenMp(unsigned long long n,  int n_threads){
     n = pow(2,n);
     
-    bool *primes = new bool[n]; //initialized as false
+    vector<bool> primes(n,false); //initialized as false
     
     unsigned long long k = 3;
     double timeCounter = -(double)omp_get_wtime();
@@ -58,13 +61,14 @@ double sieveOpenMp(unsigned long long n,  int n_threads){
         
     } while (k*k <= n);
 
-    timeCounter += (double)(omp_get_wtime());
-    return timeCounter;
-    /*
     int numberOfPrimes=0;
     for (unsigned long long i=1; i<n; i+=2)
         if (!primes[i>>1])
-            numberOfPrimes++;*/
+            numberOfPrimes++;
+
+    timeCounter += (double)(omp_get_wtime());
+    return timeCounter;
+
 
     
 }
@@ -75,7 +79,7 @@ int main(){
 	myfile.open("Benchmark1.csv");
     myfile << "Algorithm, Run Number, 2^n size, Time, num_threads\n";
 
-    for (int j = 25; j <= 25; j ++ )
+    for (int j = 25; j <= 32; j ++ )
 		for (int i = 0; i < 3; i++)
 		{
 			
@@ -84,8 +88,8 @@ int main(){
 			myfile << "1," << i << "," << j << "," << setprecision(3) <<time <<",\n";
 			cout << "1," << i << "," << j << "," << setprecision(3) <<time <<",\n";
 		}
-    for (int k=2; k<=3;k++)
-        for (int j = 25; j <= 25; j ++ )
+    for (int k=2; k<=8;k++)
+        for (int j = 25; j <= 32; j ++ )
             for (int i = 0; i < 3; i++)
             {
                 

@@ -4,6 +4,7 @@
 #include <math.h>
 #include <omp.h>
 #include <mpi.h>
+#include <fstream>
 
 
 #define BLOCK_LOW(i, n, k) ((i) * (n) / (k))
@@ -17,6 +18,7 @@ using namespace std;
 
 
 void sieveMPIAndOpenMP(unsigned long long n, unsigned int n_threads) {
+    MPI_Init( NULL, NULL );
 	n= pow(2,n);
 
     // Get the number of processes
@@ -83,10 +85,11 @@ void sieveMPIAndOpenMP(unsigned long long n, unsigned int n_threads) {
 
         cout << "Numero de primos: " << numberOfPrimes << endl;
     }
-
+    MPI_Finalize();
 }
 
 void sieveMPI(unsigned long long n) {
+    MPI_Init( NULL, NULL );
 	n= pow(2,n);
 
     // Get the number of processes
@@ -148,20 +151,17 @@ void sieveMPI(unsigned long long n) {
     if(worldRank == ROOT){
         timeCounter += MPI_Wtime();
 
-        cout << "Tempo de execucao: " <<  timeCounter << " (s)" <<endl;
+        //cout <<  timeCounter << " (s)" <<endl;
 
-        cout << "Numero de primos: " << numberOfPrimes << endl;
+        //cout << numberOfPrimes << endl;
     }
-
+    MPI_Finalize();
 }
 
 
 
 int main(){
-    MPI_Init( NULL, NULL );
 
-    sieveMPIAndOpenMP(25,3);
-	MPI_Finalize();
 }
 
 
