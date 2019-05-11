@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <math.h>
-
+#include <omp.h>
 using namespace std;
 
 void sequentialSieve (unsigned long long n)
@@ -11,11 +11,11 @@ void sequentialSieve (unsigned long long n)
     
     bool *primes = new bool[n];
     
-    long long k = 3;
-    clock_time = (float)clock();
+    unsigned long long k = 3;
+    float clock_time = (float)clock();
     do
     {
-        for (long long j = k*k ; j<n ; j+=2*k)
+        for (unsigned long long j = k*k ; j<n ; j+=2*k)
         {   primes[j>>1]=true;
         }
         
@@ -25,9 +25,9 @@ void sequentialSieve (unsigned long long n)
         }while (k*k <= n && primes[k>>1]);
         
     } while (k*k <= n);
-    clock_time = (float)((clock() - clock_time)/CLOCKS_PER_SEC);
+     clock_time = (float)((clock() - clock_time)/CLOCKS_PER_SEC);
 
-    int numberOfPrimes;
+    int numberOfPrimes=0;
     for (unsigned long long i=1; i<n; i+=2)
         if (!primes[i>>1])
             numberOfPrimes++;
@@ -40,12 +40,12 @@ void sequentialSieveOpenMp(unsigned long long n,  int n_threads){
     
     bool *primes = new bool[n]; //initialized as false
     
-    long long k = 3;
-    clock_time = (float)omp_get_wtime();
+    unsigned long long k = 3;
+    float clock_time = (float)omp_get_wtime();
     do
     {
         #pragma omp parallel for num_threads(n_threads)
-        for (long long j = k*k ; j<n ; j+=2*k)
+        for (unsigned long long j = k*k ; j<n ; j+=2*k)
         {   primes[j>>1]=true;
         }
         
@@ -58,11 +58,17 @@ void sequentialSieveOpenMp(unsigned long long n,  int n_threads){
 
     clock_time = (float)((omp_get_wtime() - clock_time));
 
-    int numberOfPrimes;
-    for (int i=1; i<n; i+=2)
+    int numberOfPrimes=0;
+    for (unsigned long long i=1; i<n; i+=2)
         if (!primes[i>>1])
             numberOfPrimes++;
 
     cout << numberOfPrimes << endl;
+}
+
+int main(){
+    sequentialSieveOpenMp(25,2);
+    sequentialSieveOpenMp(32,2);
+    return 0;
 }
 
