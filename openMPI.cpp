@@ -41,9 +41,33 @@ double sieveMPIAndOpenMP(unsigned exponent, unsigned int n_threads) {
     unsigned long long blockSize = BLOCK_SIZE(worldRank, n-1, worldSize);
     unsigned long long blockLow = 2+BLOCK_LOW(worldRank, n-1, worldSize);
     unsigned long long blockHigh = 2+BLOCK_HIGH(worldRank, n-1, worldSize);
+    
+    unsigned long long ksToSee= sqrt(n)-2;
+    vector<bool> primesHelper(ksToSee,false);
+    vector<unsigned long long> ks;
+	unsigned long long kHelper=3;
+	
+	
+	 do
+    {
+        for (unsigned long long j = kHelper*kHelper ; j<=ksToSee ; j+=2*kHelper)
+        {   primesHelper[j>>1]=true;
+        }
+        
+        do
+        {
+            kHelper+=2;
+        }while (kHelper*kHelper <= ksToSee && primesHelper[kHelper>>1]);
+        
+    } while (kHelper*kHelper <= ksToSee);
+    
 
+    for (unsigned long long i=1; i<=ksToSee; i+=2)
+        if (!primesHelper[i>>1])
+            ks.push_back(i);
+          
     vector<bool> primes(blockSize,false);
-    for (unsigned long long k = 2;k*k <= n;) {
+    for (unsigned long long i=1, k = ks[0]; i < ks.size() ;i++) {
 
         if(k*k < blockLow){
             if(blockLow % k == 0){
@@ -55,21 +79,13 @@ double sieveMPIAndOpenMP(unsigned exponent, unsigned int n_threads) {
             startBlockValue = k*k;
         }
 
-        // Mark as false all multiples of k between k*k and n
-        #pragma omp parallel for num_threads(n_threads)
+        // Mark as true all multiples of k between k*k and n
         for (unsigned long long i = startBlockValue; i <= blockHigh; i += k){
             primes[i-blockLow] = true;
         }
-
-        // Set k as the smaller urmarked number > k
-        if(worldRank == ROOT){
-            do {
-				k++;
-			} while (primes[k - blockLow] && k*k < blockHigh);
-        }
-
-        MPI_Bcast(&k, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        
+		
+		k= ks[i];
+		 
     }
 
     int blockNumberOfPrimes=0;
@@ -82,12 +98,12 @@ double sieveMPIAndOpenMP(unsigned exponent, unsigned int n_threads) {
     
     if(worldRank == ROOT){
         timeCounter += MPI_Wtime();
-        
-        std::ofstream myfile;
+        cout << numberOfPrimes << endl;
+        /*std::ofstream myfile;
 	    myfile.open("Benchmark2.csv", ofstream::out | ofstream::app);
-        myfile << "4," << exponent << "," << setprecision(3) <<timeCounter <<"," <<numberOfProcessses <<"," <<n_threads<<",\n";
+        myfile << "4," << exponent << "," << setprecision(3) <<timeCounter <<"," <<numberOfProcessses <<"," <<n_threads<<",\n";*/
         cout << "4,"  << exponent << "," << setprecision(3) <<timeCounter << "," <<numberOfProcessses <<"," <<n_threads<<",\n";
-        myfile.close();
+        //myfile.close();
 
     }
     MPI_Finalize();
